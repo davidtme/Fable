@@ -30,9 +30,12 @@ type Microsoft.FSharp.Control.Async with
         }
 
 let rec private loop timeout (server: TcpListener) (buffer: byte[]) (onMessage: (string*(string->unit)->unit)) = async {
-    try
-        // printfn "Waiting for connection..."
-        let! client = Async.AwaitTask(server.AcceptTcpClientAsync(), timeout)
+    let! client = 
+        Async.AwaitTask(server.AcceptTcpClientAsync(), timeout)
+        |> Async.Catch
+
+    match client with
+    | Choice1Of2 client ->
         match client with
         | Some client ->
             let stream = client.GetStream()
@@ -56,7 +59,8 @@ let rec private loop timeout (server: TcpListener) (buffer: byte[]) (onMessage: 
         | None ->
             Log.logAlways(sprintf "Timeout (%ims) reached. Closing Fable daemon..." timeout)
             return ()
-    with ex ->
+    
+    | Choice2Of2 ex ->
         Log.logAlways("TCP ERROR: " + ex.Message)
         return ()
 }
